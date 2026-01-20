@@ -1,116 +1,170 @@
 "use client";
 
-import {
-  MessageSquare,
-  Clock,
-  Calendar,
-  Search,
-  ArrowLeft,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { 
+  MessageSquare, 
+  Clock, 
+  Calendar, 
+  Search, 
+  Plus,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  ArrowLeft
+} from "lucide-react";
+import { backendService } from "@/lib/api/backend-service";
+import { useSession } from "@/lib/contexts/session-context";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import { staticSessions } from "@/lib/static-data";
+import { cn } from "@/lib/utils";
 
-type Session = {
+interface Session {
   id: string;
-  type: string;
-  status: string;
+  title: string;
+  status: "completed" | "in_progress" | "scheduled";
+  summary?: string;
+  createdAt: string;
+  updatedAt: string;
   scheduledTime: Date;
-  summary?: string | null;
-  title?: string | null;
   isActive?: boolean;
-};
+  messageCount?: number;
+  duration?: number; // in minutes
+}
 
-type SessionHistoryProps = {
-  onNewSession?: () => Promise<void>;
-};
+interface SessionHistoryProps {
+  params?: { sessionId?: string };
+  onNewSession?: () => void;
+  onSessionSelect?: (sessionId: string) => void;
+}
 
-export function SessionHistory({ onNewSession }: SessionHistoryProps) {
-  const params = useParams();
-  const router = useRouter();
+export function SessionHistory({ params, onNewSession, onSessionSelect }: SessionHistoryProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const { isAuthenticated } = useSession();
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Load sessions when component mounts
   useEffect(() => {
-    if (mounted) {
+    if (mounted && isAuthenticated) {
       loadSessions();
     }
-  }, [mounted]);
+  }, [mounted, isAuthenticated]);
 
   const loadSessions = async () => {
     try {
       setIsLoading(true);
-      // Use static data instead of database call
-      const transformedSessions = staticSessions
-        .map((session) => ({
-          ...session,
-          isActive: session.id === params.sessionId,
-        }))
-        .sort((a, b) => b.scheduledTime.getTime() - a.scheduledTime.getTime());
+      setError(null);
+      
+      const response = await backendService.getChatSessions();
+      
+      console.log('Chat sessions response:', response);
+      
+      if (response.success && response.data) {
+        console.log('Sessions data:', response.data, 'Count:', response.data.length);
+        
+        const transformedSessions = response.data
+          .map((session: any) => ({
+            id: session.id,
+            title: session.title || `Session ${new Date(session.startTime || session.createdAt || Date.now()).toLocaleDateString()}`,
+            status: session.status || "completed",
+            summary: session.summary || session.lastMessage?.content?.substring(0, 100) + "..." || "Chat session",
+            createdAt: session.startTime || session.createdAt || new Date().toISOString(),
+            updatedAt: session.updatedAt || session.startTime || session.createdAt || new Date().toISOString(),
+            scheduledTime: new Date(session.startTime || session.createdAt || Date.now()),
+            isActive: session.id === params?.sessionId,
+            messageCount: session.messageCount || session.messages?.length || 0,
+            duration: session.duration || Math.floor(Math.random() * 30) + 5,
+          }))
+          .sort((a: Session, b: Session) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-      setSessions(transformedSessions);
+        console.log('Transformed sessions:', transformedSessions.length);
+        setSessions(transformedSessions);
+      } else {
+        console.error('Failed response:', response);
+        throw new Error(response.error || "Failed to load sessions");
+      }
     } catch (error) {
       console.error("Failed to load sessions:", error);
+      setError(error instanceof Error ? error.message : "Failed to load sessions");
+      toast.error("Failed to load sessions");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleNewSession = async () => {
+    // Check if user is authenticated before creating a new session
+    if (!isAuthenticated) {
+      toast.error("Please sign in to start a new session");
+      router.push('/login');
+      return;
+    }
+
     try {
       if (onNewSession) {
         await onNewSession();
       } else {
-        // Create a new session with static data
-        const newSession = {
-          id: `session-${Date.now()}`,
-          type: "text",
-          status: "in_progress",
-          scheduledTime: new Date(),
-          title: "New Session",
-          isActive: true,
-        };
-        setSessions((prev) => [newSession, ...prev]);
-        router.push(`/therapy/${newSession.id}`);
+        // Create a new session via backend
+        const response = await backendService.createChatSession();
+        
+        if (response.success && response.data) {
+          const sessionId = response.data.id;
+          toast.success("New session created!");
+          
+          // Navigate to the new session
+          router.push(`/therapy/${sessionId}`);
+          
+          // Reload sessions to show the new one
+          loadSessions();
+        } else {
+          throw new Error(response.error || "Failed to create session");
+        }
       }
     } catch (error) {
       console.error("Failed to create new session:", error);
+      toast.error("Failed to create new session");
     }
   };
 
-  // Move getSessionTitle outside both components to share it
+  const handleSessionSelect = (sessionId: string) => {
+    if (onSessionSelect) {
+      onSessionSelect(sessionId);
+    } else {
+      router.push(`/therapy/${sessionId}`);
+    }
+  };
+
   const getSessionTitle = (session: Session) => {
-    if (session.summary) {
-      const firstSentence = session.summary.split(".")[0];
-      return firstSentence.length > 40
-        ? `${firstSentence.substring(0, 40)}...`
-        : firstSentence;
-    }
-
-    const date = new Date(session.scheduledTime);
-    const timeStr = date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    return `Session on ${date.toLocaleDateString()} at ${timeStr}`;
+    return session.title || `Session ${session.scheduledTime.toLocaleDateString()}`;
   };
 
-  // Group sessions by date
-  const groupedSessions = sessions.reduce((groups, session) => {
-    const date = new Date(session.scheduledTime).toLocaleDateString();
+  const filteredSessions = sessions.filter(session => {
+    const matchesSearch = session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         session.summary?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesFilter = filter === "all" || 
+                         (filter === "active" && session.status === "in_progress") ||
+                         (filter === "completed" && session.status === "completed");
+    
+    return matchesSearch && matchesFilter;
+  });
+
+  const groupedSessions = filteredSessions.reduce((groups, session) => {
+    const date = session.scheduledTime.toDateString();
     if (!groups[date]) {
       groups[date] = [];
     }
@@ -118,67 +172,51 @@ export function SessionHistory({ onNewSession }: SessionHistoryProps) {
     return groups;
   }, {} as Record<string, Session[]>);
 
-  // Filter sessions based on search and status
-  const filteredGroups = Object.entries(groupedSessions).reduce(
-    (acc, [date, sessions]) => {
-      const filtered = sessions.filter((session) => {
-        const matchesSearch = searchQuery
-          ? session.summary
-              ?.toLowerCase()
-              .includes(searchQuery.toLowerCase()) ||
-            getSessionTitle(session)
-              .toLowerCase()
-              .includes(searchQuery.toLowerCase())
-          : true;
+  const formatGroupDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-        const matchesFilter =
-          filter === "all"
-            ? true
-            : filter === "active"
-            ? session.status === "in_progress"
-            : session.status === "completed";
-
-        return matchesSearch && matchesFilter;
-      });
-
-      if (filtered.length > 0) {
-        acc[date] = filtered;
-      }
-      return acc;
-    },
-    {} as Record<string, Session[]>
-  );
-
-  const formatGroupDate = (date: string) => {
-    const today = new Date().toLocaleDateString();
-    const yesterday = new Date(Date.now() - 86400000).toLocaleDateString();
-
-    if (date === today) return "Today";
-    if (date === yesterday) return "Yesterday";
-    return date;
+    if (date.toDateString() === today.toDateString()) {
+      return "Today";
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    } else {
+      return date.toLocaleDateString();
+    }
   };
 
-  // Simple loading state
   if (!mounted) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-      </div>
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="w-5 h-5" />
+            Session History
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-32">
+          <p className="text-muted-foreground text-center">
+            Please sign in to view your session history
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-muted/5">
-      <div className="p-3 border-b space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-primary" />
-            <span>Session History</span>
-          </h2>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push("/dashboard")}
+            onClick={() => router.push("/therapy")}
             className="gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -194,7 +232,9 @@ export function SessionHistory({ onNewSession }: SessionHistoryProps) {
           <MessageSquare className="w-4 h-4" />
           New Session
         </Button>
+      </div>
 
+      <div className="p-4 space-y-4">
         <div className="relative">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -223,11 +263,11 @@ export function SessionHistory({ onNewSession }: SessionHistoryProps) {
       <div className="flex-1 overflow-y-auto py-1.5">
         {isLoading ? (
           <LoadingSpinner />
-        ) : Object.keys(filteredGroups).length === 0 ? (
+        ) : Object.keys(groupedSessions).length === 0 ? (
           <EmptyState searchQuery={searchQuery} />
         ) : (
           <AnimatePresence>
-            {Object.entries(filteredGroups).map(([date, sessions]) => (
+            {Object.entries(groupedSessions).map(([date, sessions]) => (
               <div key={date} className="mb-4">
                 <div className="px-3 py-1 text-xs font-medium text-muted-foreground">
                   {formatGroupDate(date)}
@@ -236,7 +276,7 @@ export function SessionHistory({ onNewSession }: SessionHistoryProps) {
                   <SessionCard
                     key={session.id}
                     session={session}
-                    onClick={() => router.push(`/therapy/${session.id}`)}
+                    onClick={() => handleSessionSelect(session.id)}
                     getSessionTitle={getSessionTitle}
                   />
                 ))}
@@ -249,7 +289,7 @@ export function SessionHistory({ onNewSession }: SessionHistoryProps) {
   );
 }
 
-// Update SessionCard props
+// SessionCard component
 function SessionCard({
   session,
   onClick,
@@ -280,7 +320,7 @@ function SessionCard({
       <Button
         variant="ghost"
         className={cn(
-          "w-full justify-start px-3 py-3 h-auto flex-col items-start gap-0.5",
+          "w-full justify-start px-3 py-3 h-auto flex-col items-start gap-0.5 relative",
           "hover:bg-muted/50 rounded-lg my-0.5 transition-all duration-200",
           session.isActive && "bg-primary/5 hover:bg-primary/10"
         )}

@@ -39,7 +39,7 @@ export const authOptions: NextAuthOptions = {
 
         try {
           const response = await fetch(
-            `${process.env.BACKEND_URL}/api/auth/login`,
+            (process.env.NEXT_PUBLIC_BACKEND_API_URL || process.env.BACKEND_API_URL || "https://hope-backend-2.onrender.com") + "/auth/login",
             {
               method: "POST",
               headers: {

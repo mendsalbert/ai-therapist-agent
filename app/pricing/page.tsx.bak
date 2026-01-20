@@ -1,0 +1,201 @@
+"use client";
+
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Users, Smartphone } from "lucide-react";
+import { paystackService } from "@/lib/payments/paystack-service";
+import { useSession } from "@/lib/contexts/session-context";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { MobileDownloadButton } from "@/components/mobile-download-button";
+
+export default function PricingPage() {
+  const router = useRouter();
+  const { isAuthenticated, user, refreshUserTier } = useSession();
+  const [isLoading, setIsLoading] = useState<null | "monthly" | "annually">(null);
+
+  const plans = paystackService.getPlans();
+  const monthlyPlan = plans.find((p) => p.id === "monthly");
+  const annualPlan = plans.find((p) => p.id === "annually");
+
+  const handleSignIn = () => router.push("/login");
+
+  const handleSubscribe = async (planId: "monthly" | "annually") => {
+    if (!isAuthenticated || !user) {
+      toast("Please sign in to subscribe");
+      router.push("/login");
+      return;
+    }
+
+    try {
+      setIsLoading(planId);
+      const res = await paystackService.createSubscription(user.email, planId);
+
+      if (!res.success) {
+        toast.error?.(res.error || "Failed to create subscription");
+        setIsLoading(null);
+        return;
+      }
+
+      if (res.authorization_url) {
+        window.location.href = res.authorization_url;
+        return;
+      }
+
+      toast.success?.("Subscription created. Activating premium features...");
+      await refreshUserTier();
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("Subscribe error:", err);
+      toast.error?.("Something went wrong while creating subscription");
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-muted/5 py-20">
+      <div className="max-w-5xl mx-auto px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div className="text-center mb-10">
+            <h1 className="text-3xl md:text-4xl font-extrabold">Simple plans. No surprises.</h1>
+            <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
+              FREE — Support without pressure. PREMIUM — Depth, clarity, continuity.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6 items-start mb-10">
+            <Card className="p-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <Badge variant="outline">FREE</Badge>
+                  <span className="text-lg font-semibold">Support without pressure</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="mt-4 space-y-3 text-sm">
+                  <li>✔ AI Chat: 150 messages / month</li>
+                  <li>✔ Use anytime (all in one day if you want)</li>
+                  <li>✔ No memory across sessions</li>
+                  <li>✔ Meditations: 10 full sessions / month (counted if ≥50% listened)</li>
+                  <li>✔ Journaling: Unlimited (no AI insights or summaries)</li>
+                  <li>✔ Community access & mood check-ins</li>
+                </ul>
+                <div className="mt-6">
+                  <Button onClick={handleSignIn} className="w-full" variant={"secondary" as any}>
+                    Sign in to get started
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="p-6 border-primary shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-primary text-primary-foreground">PREMIUM</Badge>
+                    <span className="text-lg font-semibold">Depth, clarity, continuity</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold">KES {monthlyPlan?.price ?? 500}</div>
+                    <div className="text-sm text-muted-foreground">~$3.85 / month</div>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="mt-4 space-y-3 text-sm">
+                  <li>🔥 Unlimited AI messages</li>
+                  <li>🔥 Long, reflective replies</li>
+                  <li>🔥 Conversation memory across sessions</li>
+                  <li>🔥 AI journal insights & weekly emotional reports</li>
+                  <li>🔥 Mood pattern detection & full meditation library</li>
+                  <li>🔥 Priority features and faster support</li>
+                </ul>
+
+                <div className="mt-6 grid grid-cols-1 gap-3">
+                  <Button
+                    onClick={() => handleSubscribe("monthly")}
+                    disabled={isLoading === "monthly"}
+                    className="w-full bg-primary"
+                  >
+                    {isLoading === "monthly" ? "Processing..." : `Subscribe — KES ${monthlyPlan?.price ?? 500} / month`}
+                  </Button>
+
+                  <Button
+                    onClick={() => handleSubscribe("annually")}
+                    disabled={isLoading === "annually"}
+                    className="w-full"
+                    variant={"outline" as any}
+                  >
+                    {isLoading === "annually" ? "Processing..." : `Subscribe annually — KES ${annualPlan?.price ?? 5000}`}
+                  </Button>
+                </div>
+
+                <p className="mt-4 text-xs text-muted-foreground">Cancel anytime. No hidden fees. Pricing shown in KES; USD is approximate.</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="bg-white/60 rounded-lg p-6 border">
+            <h3 className="text-lg font-semibold mb-3">Why upgrade to Premium?</h3>
+            <div className="grid md:grid-cols-3 gap-4 text-sm text-muted-foreground">
+              <div>
+                <strong>More time with the AI</strong>
+                <p>Longer, more reflective conversations and fewer interruptions.</p>
+              </div>
+              <div>
+                <strong>Continuity</strong>
+                <p>Memory across sessions so progress is tracked and insights improve with time.</p>
+              </div>
+              <div>
+                <strong>Better support</strong>
+                <p>AI journal insights, weekly emotional reports, and priority features.</p>
+              </div>
+            </div>
+          </div>
+
+          {process.env.NEXT_PUBLIC_APK_DOWNLOAD_URL && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.35 }}
+              className="text-center mt-8 mb-8"
+            >
+              <Card className="max-w-2xl mx-auto bg-gradient-to-r from-primary/10 to-primary/5 border-2 border-primary/20">
+                <CardContent className="p-8">
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="p-3 rounded-full bg-primary/20">
+                      <Smartphone className="w-8 h-8 text-primary" />
+                    </div>
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">Download Our Mobile App</h2>
+                  <p className="text-muted-foreground mb-6">Get Hope on your Android device for the best mobile experience.</p>
+                  <MobileDownloadButton variant="default" className="text-lg px-8 py-6 h-auto" />
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }} className="text-center mt-10">
+            <Card className="max-w-2xl mx-auto bg-primary/5 border-primary/20">
+              <CardContent className="p-8">
+                <h2 className="text-2xl font-bold mb-4">Ready to go Premium?</h2>
+                <p className="text-muted-foreground mb-6">Unlock unlimited chat, journaling, and meditations today.</p>
+                <Button onClick={() => router.push('/pricing')} size="lg" className="bg-primary hover:bg-primary/90">
+                  <Users className="w-4 h-4 mr-2" /> Get Started Today
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}

@@ -52,9 +52,10 @@ export default {
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "var(--radius)", /* 12px for buttons/inputs */
+        md: "calc(var(--radius) - 2px)", /* 10px */
+        sm: "calc(var(--radius) - 4px)", /* 8px */
+        card: "1rem", /* 16px for cards, matching Flutter */
       },
       fontFamily: {
         sans: [

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_API_URL =
-  process.env.BACKEND_API_URL ||
-  "https://ai-therapist-agent-backend.onrender.com";
+const BACKEND_API_URL = process.env.BACKEND_API_URL || "https://hope-backend-2.onrender.com";
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
@@ -10,42 +10,27 @@ export async function GET(
 ) {
   try {
     const { sessionId } = params;
-    console.log(`Getting chat history for session ${sessionId}`);
-
-    const response = await fetch(
-      `${BACKEND_API_URL}/chat/sessions/${sessionId}/history`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+    const auth = req.headers.get("authorization") || "";
+    
+    console.log(`[proxy] GET /api/chat/sessions/${sessionId}/history`);
+    
+    const res = await fetch(`${BACKEND_API_URL}/chat/sessions/${sessionId}/history`, { 
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: auth,
+        ...(process.env.BACKEND_API_KEY ? { "x-api-key": process.env.BACKEND_API_KEY } : {}),
       }
-    );
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error("Failed to get chat history:", error);
-      return NextResponse.json(
-        { error: error.error || "Failed to get chat history" },
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
-    console.log("Chat history retrieved successfully:", data);
-
-    // Format the response to match the frontend's expected format
-    const formattedMessages = data.map((msg: any) => ({
-      role: msg.role,
-      content: msg.content,
-      timestamp: msg.timestamp,
-    }));
-
-    return NextResponse.json(formattedMessages);
+    });
+    
+    console.log(`[proxy] GET /chat/sessions/${sessionId}/history upstream status:`, res.status);
+    
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
   } catch (error) {
-    console.error("Error getting chat history:", error);
+    console.error("Error fetching chat history:", error);
     return NextResponse.json(
-      { error: "Failed to get chat history" },
+      { error: "Failed to fetch chat history" },
       { status: 500 }
     );
   }

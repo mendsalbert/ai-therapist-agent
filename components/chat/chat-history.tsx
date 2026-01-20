@@ -5,16 +5,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 
-interface Message {
+interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   message: string;
-  timestamp: Date;
+  timestamp: string | Date;
   sentiment?: string;
 }
 
 interface ChatHistoryProps {
-  messages: Message[];
+  messages: ChatMessage[];
   className?: string;
 }
 

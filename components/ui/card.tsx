@@ -2,19 +2,19 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-const Card = React.forwardRef<
+const Card = React.memo(React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      "rounded-xl border bg-card text-card-foreground shadow",
+      "rounded-2xl border bg-card text-card-foreground shadow-md transition-all duration-200", /* 16px radius, matching Flutter cards */
       className
     )}
     {...props}
   />
-))
+)))
 Card.displayName = "Card"
 
 const CardHeader = React.forwardRef<

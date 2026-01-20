@@ -15,7 +15,7 @@ export function LoginForm() {
 
     setTimeout(() => {
       setIsLoading(false);
-      router.push("/dashboard");
+      router.push("/therapy");
     }, 3000);
   }
 

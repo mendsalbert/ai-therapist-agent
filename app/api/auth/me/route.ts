@@ -1,31 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(req: NextRequest) {
-  const API_URL =
-    process.env.BACKEND_API_URL ||
-    "https://ai-therapist-agent-backend.onrender.com";
-  const token = req.headers.get("Authorization");
+const API_URL = process.env.BACKEND_API_URL || "https://hope-backend-2.onrender.com";
 
-  if (!token) {
-    return NextResponse.json({ message: "No token provided" }, { status: 401 });
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+
+  if (!authHeader) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const res = await fetch(`${API_URL}/auth/me`, {
-      headers: {
-        Authorization: token,
-      },
+      headers: { Authorization: authHeader },
+      cache: "no-store",
     });
 
-    if (!res.ok) {
-      return NextResponse.json(
-        { message: "Failed to fetch user data" },
-        { status: res.status }
-      );
-    }
-
     const data = await res.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data, { status: res.status });
   } catch (error) {
     return NextResponse.json(
       { message: "Server error", error },

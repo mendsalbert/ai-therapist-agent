@@ -1,0 +1,31 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Rounded square background with gradient -->
+  <rect width="512" height="512" rx="112" fill="url(#gradient)"/>
+  
+  <!-- Simplified audio waveform in center -->
+  <g transform="translate(256, 256)">
+    <!-- Center wave (tallest) -->
+    <rect x="-8" y="-100" width="16" height="200" rx="8" fill="white" opacity="1"/>
+    <!-- Left waves -->
+    <rect x="-48" y="-70" width="14" height="140" rx="7" fill="white" opacity="0.85"/>
+    <rect x="-78" y="-50" width="12" height="100" rx="6" fill="white" opacity="0.75"/>
+    <!-- Right waves -->
+    <rect x="34" y="-70" width="14" height="140" rx="7" fill="white" opacity="0.85"/>
+    <rect x="66" y="-50" width="12" height="100" rx="6" fill="white" opacity="0.75"/>
+  </g>
+  
+  <!-- Small heart accent at bottom -->
+  <g transform="translate(256, 380) scale(0.4)">
+    <path d="M0,0 C-20,-15 -35,-25 -35,-40 C-35,-52 -25,-60 -15,-60 C-8,-60 -2,-56 0,-52 C2,-56 8,-60 15,-60 C25,-60 35,-52 35,-40 C35,-25 20,-15 0,0 Z" fill="white" opacity="0.7"/>
+  </g>
+  
+  <!-- Gradient definition - Hope AI brand colors -->
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>
+

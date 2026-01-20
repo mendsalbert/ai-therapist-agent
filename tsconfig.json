@@ -29,5 +29,9 @@
     ".next/types/**/*.ts",
     "lib/db/dbConfig.jsx"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "src/**/*",
+    "Hope-backend/**/*"
+  ]
 }

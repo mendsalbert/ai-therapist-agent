@@ -1,49 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const API_URL = process.env.BACKEND_API_URL || "https://hope-backend-2.onrender.com";
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
-  const API_URL =
-    process.env.BACKEND_API_URL ||
-    "https://ai-therapist-agent-backend.onrender.com";
-  const token = req.headers.get("Authorization");
-
-  if (!token) {
-    return NextResponse.json({ message: "No token provided" }, { status: 401 });
-  }
-
   try {
     const body = await req.json();
-    const { score, note } = body;
 
-    if (typeof score !== "number" || score < 0 || score > 100) {
-      return NextResponse.json(
-        { error: "Invalid mood score" },
-        { status: 400 }
-      );
-    }
-
-    const response = await fetch(`${API_URL}/api/mood`, {
+    const res = await fetch(`${API_URL}/mood`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: token,
-      },
-      body: JSON.stringify({ score, note }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json(
-        { error: error.message || "Failed to track mood" },
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
   } catch (error) {
-    console.error("Error tracking mood:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to submit mood" },
       { status: 500 }
     );
   }

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authentication Test</title>
+</head>
+<body>
+    <h1>Authentication Debug Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testAuth() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<h2>Testing Authentication...</h2>';
+            
+            // Test 1: Check localStorage
+            const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+            results.innerHTML += `<p><strong>Token in localStorage:</strong> ${token ? 'Found' : 'Not found'}</p>`;
+            
+            // Test 2: Test backend health
+            try {
+                const healthResponse = await fetch('https://hope-backend-2.onrender.com/api/health');
+                results.innerHTML += `<p><strong>Backend Health:</strong> ${healthResponse.status} ${healthResponse.ok ? 'OK' : 'FAILED'}</p>`;
+            } catch (error) {
+                results.innerHTML += `<p><strong>Backend Health:</strong> ERROR - ${error.message}</p>`;
+            }
+            
+            // Test 3: Test CORS
+            try {
+                const corsResponse = await fetch('https://hope-backend-2.onrender.com/api/health', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'GET'
+                    }
+                });
+                results.innerHTML += `<p><strong>CORS Test:</strong> ${corsResponse.status} ${corsResponse.ok ? 'OK' : 'FAILED'}</p>`;
+            } catch (error) {
+                results.innerHTML += `<p><strong>CORS Test:</strong> ERROR - ${error.message}</p>`;
+            }
+            
+            // Test 4: Test session endpoint
+            if (token) {
+                try {
+                    const sessionResponse = await fetch('/api/auth/session', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    const sessionData = await sessionResponse.json();
+                    results.innerHTML += `<p><strong>Session Check:</strong> ${sessionResponse.status} - ${sessionData.isAuthenticated ? 'Authenticated' : 'Not authenticated'}</p>`;
+                } catch (error) {
+                    results.innerHTML += `<p><strong>Session Check:</strong> ERROR - ${error.message}</p>`;
+                }
+            }
+            
+            // Test 5: Test login endpoint
+            try {
+                const loginResponse = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'testpassword'
+                    })
+                });
+                results.innerHTML += `<p><strong>Login Endpoint:</strong> ${loginResponse.status} ${loginResponse.ok ? 'OK' : 'FAILED'}</p>`;
+            } catch (error) {
+                results.innerHTML += `<p><strong>Login Endpoint:</strong> ERROR - ${error.message}</p>`;
+            }
+            
+            results.innerHTML += '<h3>Test Complete!</h3>';
+        }
+        
+        // Run test when page loads
+        testAuth();
+    </script>
+</body>
+</html>
